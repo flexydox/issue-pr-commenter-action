@@ -11,21 +11,18 @@ function getCommentMarker(issueKey: string): string {
 }
 
 function getOctokit() {
-  const GITHUB_API_TOKEN = process.env.GITHUB_API_TOKEN ?? '';
-  const GITHUB_API_BASE_URL = process.env.GITHUB_API_BASE_URL;
-  const octokit = github.getOctokit(GITHUB_API_TOKEN, {
-    baseUrl: GITHUB_API_BASE_URL
-  });
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
+  const octokit = github.getOctokit(GITHUB_TOKEN);
   return octokit;
 }
 
 async function getPullRequestComments(prNumber: string): Promise<Comment[]> {
   const octokit = getOctokit();
   const { owner, repo } = github.context.repo;
-  const response = await octokit.rest.issues.listComments({
+  const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
     owner,
     repo,
-    issue_number: parseInt(prNumber)
+    issue_number: parseInt(prNumber, 10)
   });
   return response.data satisfies Comment[];
 }
@@ -33,10 +30,10 @@ async function getPullRequestComments(prNumber: string): Promise<Comment[]> {
 async function createComment(prNumber: string, body: string): Promise<void> {
   const octokit = getOctokit();
   const { owner, repo } = github.context.repo;
-  const response = await octokit.rest.issues.createComment({
+  const response = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
     owner,
     repo,
-    issue_number: parseInt(prNumber),
+    issue_number: parseInt(prNumber, 10),
     body
   });
   if (response.status !== 201) {
@@ -44,10 +41,10 @@ async function createComment(prNumber: string, body: string): Promise<void> {
   }
 }
 
-async function updateComment(prNumber: string, commentId: number, body: string): Promise<void> {
+async function updateComment(commentId: number, body: string): Promise<void> {
   const octokit = getOctokit();
   const { owner, repo } = github.context.repo;
-  const response = await octokit.rest.issues.updateComment({
+  const response = await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
     owner,
     repo,
     comment_id: commentId,
@@ -58,7 +55,7 @@ async function updateComment(prNumber: string, commentId: number, body: string):
   }
 }
 
-function composeCommentBody(prNumber: string, issueResult: IssueValidationResult): string {
+function composeCommentBody(issueResult: IssueValidationResult): string {
   return `
     ${getCommentMarker(issueResult.issue.key)}
     ### ${issueResult.issue.typeName}: ${issueResult.issue.key} - ${issueResult.status} 
@@ -75,13 +72,13 @@ function composeCommentBody(prNumber: string, issueResult: IssueValidationResult
 
 async function syncCommentForPR(prNumber: string, issueResult: IssueValidationResult): Promise<void> {
   const comments = await getPullRequestComments(prNumber);
-  const commentBody = await composeCommentBody(prNumber, issueResult);
+  const commentBody = await composeCommentBody(issueResult);
   const marker = getCommentMarker(issueResult.issue.key);
 
   const existingComment = comments.find((comment) => comment?.body?.includes(marker));
 
   if (existingComment) {
-    await updateComment(prNumber, existingComment.id, commentBody);
+    await updateComment(existingComment.id, commentBody);
   } else {
     await createComment(prNumber, commentBody);
   }

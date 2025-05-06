@@ -10,7 +10,7 @@ import { syncCommentsForPR } from './sync-comments-for-pr.js';
 export async function run(): Promise<void> {
   try {
     const issuesString = process.env['INPUT_ISSUES'] ?? '';
-    const prNumber = process.env['INPUT_PR_NUMBER'] ?? '';
+    const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
     if (!prNumber) {
       core.info('PR number is not set, skipping validation.');
       return;
