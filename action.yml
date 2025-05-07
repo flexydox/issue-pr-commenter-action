@@ -1,5 +1,5 @@
-name: Get git diff Data
-description: Provide a description here
+name: Issue Commenter
+description: This action comments on a pull request with the issues found in the commit messages.
 author: Josef Karamon
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
