@@ -1,7 +1,8 @@
-name: Issue Commenter
-description: This action comments on a pull request with the issues found in the commit messages.
+name: Issue Validator Commenter
+description: |
+  This action comments on a pull request with a list of issues found in the commit messages. 
+  It is used to validate issue summaries and descriptions in commit messages.
 author: Josef Karamon
-
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
   icon: git-commit
