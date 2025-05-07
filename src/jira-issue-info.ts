@@ -62,7 +62,8 @@ async function fetchIssue(issueNumber: string): Promise<IssueInfo> {
   const queryParams = new URLSearchParams({
     fields: 'summary,description,status,issuetype,status,labels,components'
   });
-  const response = await fetch(`${ATLASSIAN_API_BASE_URL}/rest/api/3/issue/${issueNumber}?${queryParams.toString()}`, {
+  const url = `${ATLASSIAN_API_BASE_URL}/rest/api/3/issue/${issueNumber}?${queryParams.toString()}`;
+  const response = await fetch(url, {
     method: 'GET',
 
     headers: {
@@ -71,7 +72,7 @@ async function fetchIssue(issueNumber: string): Promise<IssueInfo> {
     }
   });
   if (!response.ok) {
-    throw new Error(`Error fetching issue ${issueNumber}: ${response.statusText}`);
+    throw new Error(`Error fetching issue ${issueNumber}: ${response.statusText}\n${url}`);
   }
   const jiraIssue = (await response.json()) as JiraIssue;
 
