@@ -37602,40 +37602,37 @@ function getCommentMarker(issueKey) {
     return `<!-- JIRA-ISSUES-VALIDATION-${issueKey} -->`;
 }
 function getOctokit() {
-    const GITHUB_API_TOKEN = process.env.GITHUB_API_TOKEN ?? '';
-    const GITHUB_API_BASE_URL = process.env.GITHUB_API_BASE_URL;
-    const octokit = github.getOctokit(GITHUB_API_TOKEN, {
-        baseUrl: GITHUB_API_BASE_URL
-    });
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
+    const octokit = github.getOctokit(GITHUB_TOKEN);
     return octokit;
 }
 async function getPullRequestComments(prNumber) {
     const octokit = getOctokit();
     const { owner, repo } = github.context.repo;
-    const response = await octokit.rest.issues.listComments({
+    const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
         repo,
-        issue_number: parseInt(prNumber)
+        issue_number: parseInt(prNumber, 10)
     });
     return response.data;
 }
 async function createComment(prNumber, body) {
     const octokit = getOctokit();
     const { owner, repo } = github.context.repo;
-    const response = await octokit.rest.issues.createComment({
+    const response = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
         repo,
-        issue_number: parseInt(prNumber),
+        issue_number: parseInt(prNumber, 10),
         body
     });
     if (response.status !== 201) {
         throw new Error(`Failed to create comment: ${response.status}`);
     }
 }
-async function updateComment(prNumber, commentId, body) {
+async function updateComment(commentId, body) {
     const octokit = getOctokit();
     const { owner, repo } = github.context.repo;
-    const response = await octokit.rest.issues.updateComment({
+    const response = await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
         owner,
         repo,
         comment_id: commentId,
@@ -37645,7 +37642,7 @@ async function updateComment(prNumber, commentId, body) {
         throw new Error(`Failed to update comment: ${response.status}`);
     }
 }
-function composeCommentBody(prNumber, issueResult) {
+function composeCommentBody(issueResult) {
     return `
     ${getCommentMarker(issueResult.issue.key)}
     ### ${issueResult.issue.typeName}: ${issueResult.issue.key} - ${issueResult.status} 
@@ -37661,11 +37658,11 @@ function composeCommentBody(prNumber, issueResult) {
 }
 async function syncCommentForPR(prNumber, issueResult) {
     const comments = await getPullRequestComments(prNumber);
-    const commentBody = await composeCommentBody(prNumber, issueResult);
+    const commentBody = await composeCommentBody(issueResult);
     const marker = getCommentMarker(issueResult.issue.key);
     const existingComment = comments.find((comment) => comment?.body?.includes(marker));
     if (existingComment) {
-        await updateComment(prNumber, existingComment.id, commentBody);
+        await updateComment(existingComment.id, commentBody);
     }
     else {
         await createComment(prNumber, commentBody);
@@ -37685,12 +37682,17 @@ async function syncCommentsForPR(prNumber, issuesResults) {
 async function run() {
     try {
         const issuesString = process.env['INPUT_ISSUES'] ?? '';
-        const prNumber = process.env['INPUT_PR_NUMBER'] ?? '';
+        const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
+        coreExports.debug(`issuesString: ${issuesString}`);
+        coreExports.debug(`prNumber: ${prNumber}`);
+        if (!issuesString) {
+            coreExports.info('Issues string is not set, skipping validation.');
+            return;
+        }
         if (!prNumber) {
             coreExports.info('PR number is not set, skipping validation.');
             return;
         }
-        coreExports.debug(`issues: ${issuesString}`);
         const issues = await getIssues(issuesString);
         const validationResults = await validateIssues(issues);
         coreExports.debug(`validationResults: ${JSON.stringify(validationResults)}`);

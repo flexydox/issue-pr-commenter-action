@@ -11,12 +11,16 @@ export async function run(): Promise<void> {
   try {
     const issuesString = process.env['INPUT_ISSUES'] ?? '';
     const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
+    core.debug(`issuesString: ${issuesString}`);
+    core.debug(`prNumber: ${prNumber}`);
+    if (!issuesString) {
+      core.info('Issues string is not set, skipping validation.');
+      return;
+    }
     if (!prNumber) {
       core.info('PR number is not set, skipping validation.');
       return;
     }
-
-    core.debug(`issues: ${issuesString}`);
 
     const issues = await getIssues(issuesString);
     const validationResults = await validateIssues(issues);
