@@ -37651,19 +37651,62 @@ async function updateComment(commentId, body) {
         throw new Error(`Failed to update comment: ${response.status}`);
     }
 }
+function statusToEmoji(status) {
+    switch (status) {
+        case 'ok':
+            return '✅';
+        case 'warn':
+            return '⚠️';
+        case 'error':
+            return '❌';
+        default:
+            return '❓';
+    }
+}
+function composeRecommendationBody(issueResult) {
+    if (!issueResult.recommendations.summary && !issueResult.recommendations.description) {
+        return '';
+    }
+    return `
+<details>
+<summary>Doporučení</summary>
+
+| Atribut | Doporučení | 
+| ------ | ------------- | 
+| Název | ${issueResult.recommendations.summary} |
+| Popis | ${issueResult.recommendations.description} |
+</details>
+`;
+}
+function composeSuggestionBody(issueResult) {
+    if (!issueResult.suggestions.summary && !issueResult.suggestions.description) {
+        return '';
+    }
+    return `
+<details>
+<summary>Návrh změn</summary>
+
+#### Název:
+
+\`\`\`
+${issueResult.suggestions.summary}
+\`\`\`
+
+#### Popis:
+
+\`\`\`
+${issueResult.suggestions.description}
+\`\`\`
+</details>
+`;
+}
 function composeCommentBody(issueResult) {
     return `
-    ${getCommentMarker(issueResult.issue.key)}
-    ### ${issueResult.issue.typeName}: ${issueResult.issue.key} - ${issueResult.status} 
-    - **Doporučení**:
-        - Název: ${issueResult.recommendations.summary}
-        - Popis:
-        ${issueResult.recommendations.description}
-    - **Návrh změn**:
-        - Název: ${issueResult.suggestions.summary}
-        - Popis:
-        ${issueResult.suggestions.description}
-    `;
+${getCommentMarker(issueResult.issue.key)}
+### ${statusToEmoji(issueResult.status)} Validace zadání issue ${issueResult.issue.key} (${issueResult.issue.typeName}) ${statusToEmoji(issueResult.status)}
+${composeRecommendationBody(issueResult)}
+${composeSuggestionBody(issueResult)}
+`;
 }
 async function syncCommentForPR(prNumber, issueResult) {
     const comments = await getPullRequestComments(prNumber);
@@ -37678,7 +37721,7 @@ async function syncCommentForPR(prNumber, issueResult) {
     }
 }
 async function syncCommentsForPR(prNumber, issuesResults) {
-    Promise.all(issuesResults.map((issueResult) => {
+    await Promise.all(issuesResults.map((issueResult) => {
         return syncCommentForPR(prNumber, issueResult);
     }));
 }

@@ -55,19 +55,65 @@ async function updateComment(commentId: number, body: string): Promise<void> {
   }
 }
 
+function statusToEmoji(status: string): string {
+  switch (status) {
+    case 'ok':
+      return '✅';
+    case 'warn':
+      return '⚠️';
+    case 'error':
+      return '❌';
+    default:
+      return '❓';
+  }
+}
+
+function composeRecommendationBody(issueResult: IssueValidationResult): string {
+  if (!issueResult.recommendations.summary && !issueResult.recommendations.description) {
+    return '';
+  }
+  return `
+<details>
+<summary>Doporučení</summary>
+
+| Atribut | Doporučení | 
+| ------ | ------------- | 
+| Název | ${issueResult.recommendations.summary} |
+| Popis | ${issueResult.recommendations.description} |
+</details>
+`;
+}
+
+function composeSuggestionBody(issueResult: IssueValidationResult): string {
+  if (!issueResult.suggestions.summary && !issueResult.suggestions.description) {
+    return '';
+  }
+  return `
+<details>
+<summary>Návrh změn</summary>
+
+#### Název:
+
+\`\`\`
+${issueResult.suggestions.summary}
+\`\`\`
+
+#### Popis:
+
+\`\`\`
+${issueResult.suggestions.description}
+\`\`\`
+</details>
+`;
+}
+
 function composeCommentBody(issueResult: IssueValidationResult): string {
   return `
-    ${getCommentMarker(issueResult.issue.key)}
-    ### ${issueResult.issue.typeName}: ${issueResult.issue.key} - ${issueResult.status} 
-    - **Doporučení**:
-        - Název: ${issueResult.recommendations.summary}
-        - Popis:
-        ${issueResult.recommendations.description}
-    - **Návrh změn**:
-        - Název: ${issueResult.suggestions.summary}
-        - Popis:
-        ${issueResult.suggestions.description}
-    `;
+${getCommentMarker(issueResult.issue.key)}
+### ${statusToEmoji(issueResult.status)} Validace zadání issue ${issueResult.issue.key} (${issueResult.issue.typeName}) ${statusToEmoji(issueResult.status)}
+${composeRecommendationBody(issueResult)}
+${composeSuggestionBody(issueResult)}
+`;
 }
 
 async function syncCommentForPR(prNumber: string, issueResult: IssueValidationResult): Promise<void> {
@@ -84,7 +130,7 @@ async function syncCommentForPR(prNumber: string, issueResult: IssueValidationRe
   }
 }
 export async function syncCommentsForPR(prNumber: string, issuesResults: IssueValidationResult[]): Promise<void> {
-  Promise.all(
+  await Promise.all(
     issuesResults.map((issueResult) => {
       return syncCommentForPR(prNumber, issueResult);
     })
