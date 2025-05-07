@@ -27355,10 +27355,18 @@ const issueTypeMapper = {
     Scénář: 'story'
 };
 async function fetchIssue(issueNumber) {
-    // example: https://your-jira-instance.atlassian.net
     const ATLASSIAN_API_BASE_URL = process.env.ATLASSIAN_API_BASE_URL;
     const ATLASSIAN_API_USERNAME = process.env.ATLASSIAN_API_USERNAME;
     const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
+    if (!ATLASSIAN_API_BASE_URL) {
+        throw new Error('Missing Atlassian base URL');
+    }
+    if (!ATLASSIAN_API_USERNAME) {
+        throw new Error('Missing Atlassian username');
+    }
+    if (!ATLASSIAN_API_TOKEN) {
+        throw new Error('Missing Atlassian token');
+    }
     const queryParams = new URLSearchParams({
         fields: 'summary,description,status,issuetype,status,labels,components'
     });
