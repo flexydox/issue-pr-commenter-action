@@ -8,29 +8,14 @@ branding:
   color: blue
 
 inputs:
-  issue-pattern:
-    description: Issue pattern - regex to match issues in commit messages
+  issues:
+    description: Comma separated list of issues found in commit messages
     required: false
-    default: '#(\d+)'
+    default: ''
   pr-number:
     description: Pull request number
     required: true
-  data-separator:
-    description: Separator for commit messages, patch files and raw files
-    required: false
-    default: '\n'
-
-outputs:
-  commit-messages:
-    description: All commit messages string
-  issues:
-    description: Comma separated list of issues found in commit messages
-  files:
-    description: Comma separated list of file names changed in the pull request
-  patches:
-    description: File patches separated by [data-separator]
-  raw-files:
-    description: Raw files data separated by [data-separator]
+    default: ''
 
 runs:
   using: node20

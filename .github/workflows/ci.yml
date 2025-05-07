@@ -4,11 +4,14 @@ on:
   pull_request:
     branches:
       - main
+
   push:
     branches:
       - main
 
 permissions:
+  pull-requests: write
+  issues: write
   contents: read
 
 jobs:
@@ -54,28 +57,10 @@ jobs:
         uses: ./
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATLASSIAN_API_BASE_URL: ${{ vars.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
+          issues: 'FXDX-1,FXDX-2'
           pr-number: ${{ github.event.pull_request.number }}
-          data-separator: '\n'
-          issue-pattern: '\FXDX-\d+\b'
-
-      - name: Print Output - Commit Messages
-        id: output-commit-messages
-        run: echo "${{ steps.test-action.outputs.commit-messages }}"
-      - name: Print Output - Issues
-        id: output-issues
-        run: echo "${{ steps.test-action.outputs.issues }}"
-      - name: Print Output - Files
-        id: output-files
-        run: echo "${{ steps.test-action.outputs.files }}"
-
-      - name: Print Output - Patches
-        id: output-patches
-        run: echo "$PATCHES"
-        env:
-          PATCHES: ${{ steps.test-action.outputs.patches }}
-      - name: Print Output - Raw Files
-        id: output-raw-files
-        run: echo "$RAW_FILES"
-        env:
-          RAW_FILES: ${{ steps.test-action.outputs.raw-files }}
