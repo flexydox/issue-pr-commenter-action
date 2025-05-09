@@ -1,4 +1,4 @@
-name: Issue Validator Commenter
+name: Issue PR Commenter
 description: Creates a PR comment if the issue is incompletely specified.
 author: Josef Karamon
 # Add your action's branding here. This will appear on the GitHub Marketplace.
