@@ -1,17 +1,17 @@
 {
-  "name": "@flexydox/issue-info-action",
+  "name": "@flexydox/issue-pr-commenter-action",
   "description": "GitHub Actions TypeScript template",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/flexydox/issue-pr-commenter-action",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/flexydox/issue-pr-commenter-action.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/flexydox/issue-pr-commenter-action/issues"
   },
   "keywords": [
     "actions"
