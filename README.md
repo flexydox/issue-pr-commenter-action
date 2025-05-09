@@ -1,4 +1,4 @@
-# issue-info-action
+# issue-pr-commenter-action
 
 Get issue title and description from issue number. Evaluate title and description and create a PR comment with the
 result.
