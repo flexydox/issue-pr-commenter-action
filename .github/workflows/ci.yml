@@ -2,6 +2,10 @@ name: Continuous Integration
 
 on:
   pull_request:
+  issue_comment:
+    types:
+      - created
+      - edited
 
   push:
     branches:
