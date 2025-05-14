@@ -37610,13 +37610,13 @@ var github = /*@__PURE__*/getDefaultExportFromCjs(githubExports);
 function getCommentMarker(issueKey) {
     return `<!-- JIRA-ISSUES-VALIDATION-${issueKey} -->`;
 }
-function getOctokit() {
+function getOctokit$1() {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
     const octokit = github.getOctokit(GITHUB_TOKEN);
     return octokit;
 }
 async function getPullRequestComments(prNumber) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
@@ -37626,7 +37626,7 @@ async function getPullRequestComments(prNumber) {
     return response.data;
 }
 async function createComment(prNumber, body) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
@@ -37639,7 +37639,7 @@ async function createComment(prNumber, body) {
     }
 }
 async function updateComment(commentId, body) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
         owner,
@@ -37726,6 +37726,22 @@ async function syncCommentsForPR(prNumber, issuesResults) {
     }));
 }
 
+function getOctokit() {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
+    const octokit = github.getOctokit(GITHUB_TOKEN);
+    return octokit;
+}
+async function getPRInfo(prNumber) {
+    const octokit = getOctokit();
+    const { owner, repo } = github.context.repo;
+    const response = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+        owner,
+        repo,
+        pull_number: parseInt(prNumber, 10)
+    });
+    return response.data;
+}
+
 /**
  * The main function for the action.
  *
@@ -37735,8 +37751,12 @@ async function run() {
     try {
         const issuesString = process.env['INPUT_ISSUES'] ?? '';
         const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
+        const prTitleRegex = process.env['INPUT_PR-TITLE-REGEX'] ?? '.*';
+        const failWhenNoIssues = !!process.env['INPUT_FAIL-WHEN-NO-ISSUES'];
         coreExports.debug(`issuesString: ${issuesString}`);
         coreExports.debug(`prNumber: ${prNumber}`);
+        coreExports.debug(`prTitleRegex: ${prTitleRegex}`);
+        coreExports.debug(`failWhenNoIssues: ${failWhenNoIssues}`);
         if (!issuesString) {
             coreExports.info('Issues string is not set, skipping validation.');
             return;
@@ -37745,10 +37765,38 @@ async function run() {
             coreExports.info('PR number is not set, skipping validation.');
             return;
         }
+        const prInfo = await getPRInfo(prNumber);
+        coreExports.debug(`PR title: ${prInfo.title}`);
+        if (!prInfo) {
+            coreExports.setFailed('PR not found!');
+            return;
+        }
+        if (prInfo.title && !new RegExp(prTitleRegex).test(prInfo.title)) {
+            coreExports.info(`PR title "${prInfo.title}" does not match regex "${prTitleRegex}", skipping validation.`);
+            return;
+        }
         const issues = await getIssues(issuesString);
+        if (!issues || issues.length === 0) {
+            coreExports.info('No issues found, skipping validation.');
+            if (failWhenNoIssues) {
+                coreExports.setFailed('No issues found and failWhenNoIssues is set to true');
+            }
+            return;
+        }
         const validationResults = await validateIssues(issues);
         coreExports.debug(`validationResults: ${JSON.stringify(validationResults)}`);
         await syncCommentsForPR(prNumber, validationResults);
+        coreExports.debug('Comments synced successfully');
+        const atLeastOneError = validationResults.find((result) => {
+            if (result.status === 'error') {
+                return true;
+            }
+            return false;
+        });
+        if (atLeastOneError) {
+            coreExports.setFailed('Validation failed for some issues');
+            return;
+        }
         coreExports.debug('Issues validated successfully');
     }
     catch (error) {

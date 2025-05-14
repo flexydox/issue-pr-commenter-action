@@ -52,6 +52,15 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
+      - name: Check Secret Availability
+        run: |
+          if [ -z "${{ secrets.ATLASSIAN_API_USERNAME }}" ]; then
+            echo "🚨 Secret NOT available!"
+            exit 1
+          else
+            echo "✅ Secret is available (value is hidden)"
+          fi
+
       - name: Test Local Action
         id: test-action
         uses: ./
