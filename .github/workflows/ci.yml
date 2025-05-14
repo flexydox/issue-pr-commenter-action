@@ -1,7 +1,7 @@
 name: Continuous Integration
 
 on:
-  pull_request_target:
+  pull_request:
 
   push:
     branches:
@@ -42,6 +42,7 @@ jobs:
         run: npm run lint
 
   test-action:
+    if: contains(github.actor , '[bot]') == false
     name: GitHub Actions Test
     runs-on: ubuntu-latest
 
