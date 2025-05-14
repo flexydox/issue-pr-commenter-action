@@ -27350,11 +27350,11 @@ const issueTypeMapper = {
     Subtask: 'subtask',
     Epic: 'epic',
     Úkol: 'task',
-    'Dílčí úkol (subtask)': 'subtask',
+    'Dílčí úkol': 'subtask',
     Chyba: 'bug',
     Scénář: 'story'
 };
-async function fetchIssue(issueNumber) {
+async function fetchJiraIssue(issueNumber) {
     const ATLASSIAN_API_BASE_URL = process.env.ATLASSIAN_API_BASE_URL;
     const ATLASSIAN_API_USERNAME = process.env.ATLASSIAN_API_USERNAME;
     const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
@@ -27368,7 +27368,7 @@ async function fetchIssue(issueNumber) {
         throw new Error('Missing Atlassian token');
     }
     const queryParams = new URLSearchParams({
-        fields: 'summary,description,status,issuetype,status,labels,components'
+        fields: 'summary,description,status,issuetype,status,labels,components,parent'
     });
     const url = `${ATLASSIAN_API_BASE_URL}/rest/api/3/issue/${issueNumber}?${queryParams.toString()}`;
     const response = await fetch(url, {
@@ -27382,6 +27382,14 @@ async function fetchIssue(issueNumber) {
         throw new Error(`Error fetching issue ${issueNumber}: ${response.statusText}\n${url}`);
     }
     const jiraIssue = (await response.json());
+    return jiraIssue;
+}
+async function fetchIssue(issueNumber) {
+    let jiraIssue = await fetchJiraIssue(issueNumber);
+    if (jiraIssue?.fields?.parent?.key && jiraIssue?.fields?.issuetype?.subtask) {
+        console.log(`Fetching parent issue ${jiraIssue.fields.parent.key} for subtask ${issueNumber}`);
+        jiraIssue = await fetchJiraIssue(jiraIssue.fields.parent.key);
+    }
     const issueInfo = {
         key: jiraIssue.key,
         type: issueTypeMapper[jiraIssue.fields.issuetype.name] ?? jiraIssue.fields.issuetype.name,
@@ -37759,6 +37767,10 @@ async function run() {
         coreExports.debug(`failWhenNoIssues: ${failWhenNoIssues}`);
         if (!issuesString) {
             coreExports.info('Issues string is not set, skipping validation.');
+            if (failWhenNoIssues) {
+                coreExports.setFailed('No issues defined and failWhenNoIssues is set to true');
+                return;
+            }
             return;
         }
         if (!prNumber) {
