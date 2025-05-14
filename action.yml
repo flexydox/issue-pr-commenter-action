@@ -8,13 +8,21 @@ branding:
 
 inputs:
   issues:
-    description: Comma separated list of issues found in commit messages
+    description: Comma separated list of issues
     required: false
     default: ''
   pr-number:
     description: Pull request number
     required: true
     default: ''
+  pr-title-regex:
+    description: Regular expression to match the PR title. Only PRs with a title matching this regex will be validated.
+    required: false
+    default: '.*'
+  fail-when-no-issues:
+    description: Fail the action if no issues are provided
+    required: false
+    default: 'false'
 
 runs:
   using: node20

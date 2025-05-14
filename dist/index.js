@@ -27350,11 +27350,11 @@ const issueTypeMapper = {
     Subtask: 'subtask',
     Epic: 'epic',
     Úkol: 'task',
-    'Dílčí úkol (subtask)': 'subtask',
+    'Dílčí úkol': 'subtask',
     Chyba: 'bug',
     Scénář: 'story'
 };
-async function fetchIssue(issueNumber) {
+async function fetchJiraIssue(issueNumber) {
     const ATLASSIAN_API_BASE_URL = process.env.ATLASSIAN_API_BASE_URL;
     const ATLASSIAN_API_USERNAME = process.env.ATLASSIAN_API_USERNAME;
     const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
@@ -27368,7 +27368,7 @@ async function fetchIssue(issueNumber) {
         throw new Error('Missing Atlassian token');
     }
     const queryParams = new URLSearchParams({
-        fields: 'summary,description,status,issuetype,status,labels,components'
+        fields: 'summary,description,status,issuetype,status,labels,components,parent'
     });
     const url = `${ATLASSIAN_API_BASE_URL}/rest/api/3/issue/${issueNumber}?${queryParams.toString()}`;
     const response = await fetch(url, {
@@ -27382,6 +27382,14 @@ async function fetchIssue(issueNumber) {
         throw new Error(`Error fetching issue ${issueNumber}: ${response.statusText}\n${url}`);
     }
     const jiraIssue = (await response.json());
+    return jiraIssue;
+}
+async function fetchIssue(issueNumber) {
+    let jiraIssue = await fetchJiraIssue(issueNumber);
+    if (jiraIssue?.fields?.parent?.key && jiraIssue?.fields?.issuetype?.subtask) {
+        console.log(`Fetching parent issue ${jiraIssue.fields.parent.key} for subtask ${issueNumber}`);
+        jiraIssue = await fetchJiraIssue(jiraIssue.fields.parent.key);
+    }
     const issueInfo = {
         key: jiraIssue.key,
         type: issueTypeMapper[jiraIssue.fields.issuetype.name] ?? jiraIssue.fields.issuetype.name,
@@ -37610,13 +37618,13 @@ var github = /*@__PURE__*/getDefaultExportFromCjs(githubExports);
 function getCommentMarker(issueKey) {
     return `<!-- JIRA-ISSUES-VALIDATION-${issueKey} -->`;
 }
-function getOctokit() {
+function getOctokit$1() {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
     const octokit = github.getOctokit(GITHUB_TOKEN);
     return octokit;
 }
 async function getPullRequestComments(prNumber) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
@@ -37626,7 +37634,7 @@ async function getPullRequestComments(prNumber) {
     return response.data;
 }
 async function createComment(prNumber, body) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner,
@@ -37639,7 +37647,7 @@ async function createComment(prNumber, body) {
     }
 }
 async function updateComment(commentId, body) {
-    const octokit = getOctokit();
+    const octokit = getOctokit$1();
     const { owner, repo } = github.context.repo;
     const response = await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
         owner,
@@ -37726,6 +37734,22 @@ async function syncCommentsForPR(prNumber, issuesResults) {
     }));
 }
 
+function getOctokit() {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
+    const octokit = github.getOctokit(GITHUB_TOKEN);
+    return octokit;
+}
+async function getPRInfo(prNumber) {
+    const octokit = getOctokit();
+    const { owner, repo } = github.context.repo;
+    const response = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+        owner,
+        repo,
+        pull_number: parseInt(prNumber, 10)
+    });
+    return response.data;
+}
+
 /**
  * The main function for the action.
  *
@@ -37735,20 +37759,61 @@ async function run() {
     try {
         const issuesString = process.env['INPUT_ISSUES'] ?? '';
         const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
+        const prTitleRegex = process.env['INPUT_PR-TITLE-REGEX'] ?? '.*';
+        const failWhenNoIssues = !!process.env['INPUT_FAIL-WHEN-NO-ISSUES'];
         coreExports.debug(`issuesString: ${issuesString}`);
         coreExports.debug(`prNumber: ${prNumber}`);
+        coreExports.debug(`prTitleRegex: ${prTitleRegex}`);
+        coreExports.debug(`failWhenNoIssues: ${failWhenNoIssues}`);
         if (!issuesString) {
             coreExports.info('Issues string is not set, skipping validation.');
+            if (failWhenNoIssues) {
+                coreExports.setFailed('No issues defined and failWhenNoIssues is set to true');
+                return;
+            }
             return;
         }
         if (!prNumber) {
             coreExports.info('PR number is not set, skipping validation.');
             return;
         }
+        const prInfo = await getPRInfo(prNumber);
+        coreExports.debug(`PR title: ${prInfo.title}`);
+        if (!prInfo) {
+            coreExports.setFailed('PR not found!');
+            return;
+        }
+        if (prInfo.title && !new RegExp(prTitleRegex).test(prInfo.title)) {
+            coreExports.info(`PR title "${prInfo.title}" does not match regex "${prTitleRegex}", skipping validation.`);
+            return;
+        }
         const issues = await getIssues(issuesString);
+        if (!issues || issues.length === 0) {
+            coreExports.info('No issues found, skipping validation.');
+            if (failWhenNoIssues) {
+                coreExports.setFailed('No issues found and failWhenNoIssues is set to true');
+            }
+            return;
+        }
         const validationResults = await validateIssues(issues);
         coreExports.debug(`validationResults: ${JSON.stringify(validationResults)}`);
         await syncCommentsForPR(prNumber, validationResults);
+        coreExports.debug('Comments synced successfully');
+        const failedIssues = validationResults.filter((result) => {
+            if (result.status === 'error') {
+                return true;
+            }
+            return false;
+        });
+        const failedIssuesMessage = failedIssues
+            .map((issue) => {
+            return issue.issue.key;
+        })
+            .join(', ');
+        if (failedIssues.length > 0) {
+            coreExports.setFailed(`Validation failed for issues: ${failedIssuesMessage}`);
+            return;
+        }
         coreExports.debug('Issues validated successfully');
     }
     catch (error) {

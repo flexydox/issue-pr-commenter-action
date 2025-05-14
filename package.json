@@ -1,7 +1,7 @@
 {
   "name": "@flexydox/issue-pr-commenter-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "1.0.1",
+  "description": "GitHub Action to comment on issues and pull requests using OpenAI's model.",
+  "version": "1.0.2",
   "author": "",
   "type": "module",
   "private": true,
