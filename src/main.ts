@@ -61,15 +61,21 @@ export async function run(): Promise<void> {
 
     core.debug('Comments synced successfully');
 
-    const atLeastOneError = validationResults.find((result) => {
+    const failedIssues = validationResults.filter((result) => {
       if (result.status === 'error') {
         return true;
       }
       return false;
     });
 
-    if (atLeastOneError) {
-      core.setFailed('Validation failed for some issues');
+    const failedIssuesMessage = failedIssues
+      .map((issue) => {
+        return issue.issue.key;
+      })
+      .join(', ');
+
+    if (failedIssues.length > 0) {
+      core.setFailed(`Validation failed for issues: ${failedIssuesMessage}`);
       return;
     }
 
