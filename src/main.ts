@@ -13,21 +13,14 @@ export async function run(): Promise<void> {
     const issuesString = process.env['INPUT_ISSUES'] ?? '';
     const prNumber = process.env['INPUT_PR-NUMBER'] ?? '';
     const prTitleRegex = process.env['INPUT_PR-TITLE-REGEX'] ?? '.*';
-    const failWhenNoIssues = !!process.env['INPUT_FAIL-WHEN-NO-ISSUES'];
+    const failWhenNoIssuesStr = process.env['INPUT_FAIL-WHEN-NO-ISSUES']?.toString() ?? 'false';
+    const failWhenNoIssues = failWhenNoIssuesStr.toLowerCase() === 'true' || failWhenNoIssuesStr === '1';
 
     core.debug(`issuesString: ${issuesString}`);
     core.debug(`prNumber: ${prNumber}`);
     core.debug(`prTitleRegex: ${prTitleRegex}`);
     core.debug(`failWhenNoIssues: ${failWhenNoIssues}`);
 
-    if (!issuesString) {
-      core.info('Issues string is not set, skipping validation.');
-      if (failWhenNoIssues) {
-        core.setFailed('No issues defined and failWhenNoIssues is set to true');
-        return;
-      }
-      return;
-    }
     if (!prNumber) {
       core.info('PR number is not set, skipping validation.');
       return;
@@ -42,6 +35,15 @@ export async function run(): Promise<void> {
     }
     if (prInfo.title && !new RegExp(prTitleRegex).test(prInfo.title)) {
       core.info(`PR title "${prInfo.title}" does not match regex "${prTitleRegex}", skipping validation.`);
+      return;
+    }
+
+    if (!issuesString) {
+      core.info('Issues string is not set, skipping validation.');
+      if (failWhenNoIssues) {
+        core.setFailed('No issues defined and failWhenNoIssues is set to true');
+        return;
+      }
       return;
     }
 
