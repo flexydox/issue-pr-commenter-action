@@ -34,7 +34,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^3.0.0",
     "openai": "^4.97.0"
   },
   "devDependencies": {
